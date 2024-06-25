@@ -9,7 +9,6 @@ export const DataLoadedBody = () => {
 
     const [headers, setHeaders] = useState([])
     const [dataframe, setDataFrame] = useState({})
-    const [pagination, setPagination] = useState({})
 
     const [dataLoaded, setDataLoaded] = useState(false)
 
@@ -17,15 +16,15 @@ export const DataLoadedBody = () => {
         try {
 
             const cols = await nativeDataFrame.getColumns()
-            const df = await nativeDataFrame.getDataFrame() || []
+            const df = await nativeDataFrame.getDataframePag(15) || []
             setHeaders(cols)
             setDataFrame(df)
 
-            const slicedDf = cols.reduce((prev, curr) => {
-                return { ...prev, [curr]: df[curr].slice(0, 15) }
-            }, {})
+            // const slicedDf = cols.reduce((prev, curr) => {
+            //     return { ...prev, [curr]: df[curr].slice(0, 15) }
+            // }, {})
 
-            setPagination(slicedDf)
+            // setPagination(slicedDf)
 
 
         } catch (err) {
@@ -38,25 +37,27 @@ export const DataLoadedBody = () => {
         setDataLoaded(true)
     }, [])
 
-    const loadMore = () => {
-        setPagination(old => {
+    const loadMore = async () => {
+        // setPagination(old => {
 
-            const newVals = headers.reduce((prev, curr, index) => {
-                const headerName = headers[index]
-                const newValues = dataframe[headerName].slice(prev[headerName]?.length, prev[headerName]?.length + 10)
-                const oldValues = prev[headerName]
-                console.log({
-                    [headerName]: {
-                        old: oldValues,
-                        new: newValues
-                    }
-                })
-                return { ...prev, [headerName]: [...oldValues, ...newValues] }
-            }, old)
+        //     const newVals = headers.reduce((prev, curr, index) => {
+        //         const headerName = headers[index]
+        //         const newValues = dataframe[headerName].slice(prev[headerName]?.length, prev[headerName]?.length + 10)
+        //         const oldValues = prev[headerName]
+        //         return { ...prev, [headerName]: [...oldValues, ...newValues] }
+        //     }, old)
 
-            return newVals
-        }
-        )
+        //     return newVals
+        // }
+        // )
+        const newSlice = await nativeDataFrame.getDataframePag(50)
+
+        headers.forEach(c => {
+            const oldValues = dataframe[c]
+            const newValues = [...oldValues, ...newSlice[c]]
+            setDataFrame(old => ({ ...old, [c]: newValues }))
+        });
+
     }
 
 
@@ -68,7 +69,7 @@ export const DataLoadedBody = () => {
                     :
                     <ScrollView>
                         <ScrollView horizontal>
-                            <TableDataframe columns={headers} dataframe={pagination} />
+                            <TableDataframe columns={headers} dataframe={dataframe} />
                         </ScrollView>
                         <Button title="Load more" onPress={loadMore} />
                     </ScrollView>

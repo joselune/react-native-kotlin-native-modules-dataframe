@@ -5,6 +5,7 @@ import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.WritableMap
 import org.jetbrains.kotlinx.dataframe.DataFrame
 import org.jetbrains.kotlinx.dataframe.api.colsOf
 import org.jetbrains.kotlinx.dataframe.api.convert
@@ -27,6 +28,8 @@ import java.io.FileOutputStream
 
 class DataFrameModule(private val reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
     private lateinit var dataFrameData: DataFrame<*>
+    private var paginationStart: Int = 0
+
     override fun getName() = "nativeDataFrame"
 
     @ReactMethod(isBlockingSynchronousMethod = true)
@@ -41,6 +44,14 @@ class DataFrameModule(private val reactContext: ReactApplicationContext) : React
         return dataFrameData.count()
     }
 
+    @ReactMethod()
+    fun getDataframePag(step: Int? = 15) = safeGuardDataFrame {
+        val end = paginationStart + step!!
+        val newDfSlice = dataFrameData[paginationStart..end]
+        paginationStart = end
+        getDataframeValuesFrom(newDfSlice)
+    }
+
     @ReactMethod
     fun getColumns() = safeGuardDataFrame {
         val arr = Arguments.createArray()
@@ -53,10 +64,14 @@ class DataFrameModule(private val reactContext: ReactApplicationContext) : React
 
     @ReactMethod(isBlockingSynchronousMethod = true)
     fun getDataFrame() = safeGuardDataFrame {
-        val columns = dataFrameData.columnNames()
+        getDataframeValuesFrom(dataFrameData)
+    }
+
+    private fun getDataframeValuesFrom(df: DataFrame<*>): WritableMap{
+        val columns = df.columnNames()
         val objetValues = Arguments.createMap()
         for (col in columns){
-            val values = dataFrameData.select(col).toMap()
+            val values = df.select(col).toMap()
 
             val content = Arguments.createArray()
 
@@ -77,7 +92,7 @@ class DataFrameModule(private val reactContext: ReactApplicationContext) : React
             objetValues.putArray(col, content)
         }
 
-        objetValues
+        return objetValues
     }
 
     @ReactMethod
@@ -116,15 +131,18 @@ class DataFrameModule(private val reactContext: ReactApplicationContext) : React
 
     private fun log(value: Any) {
         when(value){
-            is Double -> Log.d("ReactNative", value.toString())
-            is Int -> Log.d("ReactNative", value.toString())
-            is String -> Log.d("ReactNative", value)
+            is Double -> log(value.toString())
+            is Int -> log(value.toString())
+            is String -> log(value.toString())
             is List<*> -> {
                 if(value.all {it is String}){
-                    Log.d("ReactNative", value.joinToString(", "))
+                    log(value.joinToString(", "))
+                }
+                if(value.all {it is Int}){
+                    log(value.joinToString(", "))
                 }
             }
-            else -> Log.d("ReactNative", "not value")
+            else -> log("Not a Supported value")
         }
     }
 
